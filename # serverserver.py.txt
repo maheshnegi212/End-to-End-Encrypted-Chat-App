@@ -1,0 +1,37 @@
+# server/server.py
+import socket
+from crypto import rsa_utils
+
+# Generate RSA key pair for server (receiver)
+private_key, public_key = rsa_utils.generate_rsa_keys()
+print("[Server] Public Key (share this with client):")
+print(public_key.decode())
+
+# Accept encrypted AES key and encrypted messages
+HOST = '127.0.0.1'
+PORT = 65432
+
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    s.bind((HOST, PORT))
+    s.listen(1)
+    print("[Server] Waiting for connection...")
+    conn, addr = s.accept()
+    with conn:
+        print(f"[Server] Connected by {addr}")
+
+        # Step 1: Receive AES key encrypted with RSA
+        encrypted_aes_key = conn.recv(512)
+        aes_key = rsa_utils.decrypt_with_rsa(private_key, encrypted_aes_key)
+        print("[Server] AES key received and decrypted.")
+
+        # Step 2: Receive and decrypt messages
+        while True:
+            encrypted_msg = conn.recv(4096).decode()
+            if encrypted_msg == 'exit':
+                print("[Server] Connection closed.")
+                break
+            try:
+                decrypted_msg = rsa_utils.decrypt_with_aes(aes_key, encrypted_msg)
+                print("[Client]:", decrypted_msg)
+            except Exception as e:
+                print("[Error] Failed to decrypt message:", str(e))
