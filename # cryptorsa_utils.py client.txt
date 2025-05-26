@@ -1,0 +1,38 @@
+# crypto/rsa_utils.py
+
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP, AES
+from Crypto.Random import get_random_bytes
+import base64
+
+
+def generate_rsa_keys():
+    key = RSA.generate(2048)
+    private_key = key.export_key()
+    public_key = key.publickey().export_key()
+    return private_key, public_key
+
+
+def encrypt_with_rsa(public_key_bytes, data):
+    public_key = RSA.import_key(public_key_bytes)
+    cipher_rsa = PKCS1_OAEP.new(public_key)
+    return cipher_rsa.encrypt(data)
+
+
+def decrypt_with_rsa(private_key_bytes, encrypted_data):
+    private_key = RSA.import_key(private_key_bytes)
+    cipher_rsa = PKCS1_OAEP.new(private_key)
+    return cipher_rsa.decrypt(encrypted_data)
+
+
+def encrypt_with_aes(aes_key, plaintext):
+    cipher_aes = AES.new(aes_key, AES.MODE_EAX)
+    ciphertext, tag = cipher_aes.encrypt_and_digest(plaintext.encode())
+    return base64.b64encode(cipher_aes.nonce + tag + ciphertext).decode()
+
+
+def decrypt_with_aes(aes_key, encrypted_data):
+    raw = base64.b64decode(encrypted_data.encode())
+    nonce, tag, ciphertext = raw[:16], raw[16:32], raw[32:]
+    cipher_aes = AES.new(aes_key, AES.MODE_EAX, nonce)
+    return cipher_aes.decrypt_and_verify(ciphertext, tag).decode()
